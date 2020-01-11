@@ -35,7 +35,7 @@ config ARCH_powerpc_ABI_DEFAULT
 config ARCH_powerpc_ABI_EABI
     bool
     prompt "EABI"
-    depends on BARE_METAL
+    depends on BARE_METAL || ZEPHYR
     help
       The Embedded ABI (stack alignment of 8 bytes, etc).
 

@@ -277,7 +277,7 @@ config CC_CXA_ATEXIT
     bool
     prompt "Use __cxa_atexit"
     default y
-    depends on ! BARE_METAL || LIBC_PROVIDES_CXA_ATEXIT
+    depends on (! BARE_METAL && ! ZEPHYR ) || LIBC_PROVIDES_CXA_ATEXIT
     help
       If you get the missing symbol "__cxa_atexit" when building C++ programs,
       you might want to try disabling this option.
@@ -297,6 +297,7 @@ config CC_GCC_SJLJ_EXCEPTIONS
     tristate
     prompt "Use sjlj for exceptions"
     depends on ! BARE_METAL
+    depends on ! ZEPHYR
     default m
     help
       'sjlj' is short for setjmp/longjmp.

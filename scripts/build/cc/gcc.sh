@@ -267,7 +267,8 @@ do_cc_core_pass_2() {
 # This function is used to build the core C compiler.
 # Usage: do_gcc_core_backend param=value [...]
 #   Parameter           : Definition                                : Type      : Default
-#   mode                : build a 'static', 'shared' or 'baremetal' : string    : (none)
+#   mode                : build a 'static', 'shared', 'baremetal' or 'zephyr' 
+#                                                                   : string    : (none)
 #   host                : the machine the core will run on          : tuple     : (none)
 #   prefix              : dir prefix to install into                : dir       : (none)
 #   complibs            : dir where complibs are installed          : dir       : (none)
@@ -281,7 +282,7 @@ do_cc_core_pass_2() {
 #   ldflags             : ldflags to use                            : string    : (empty)
 #   build_step          : build step 'core1', 'core2', 'gcc_build',
 #                         'libstdcxx_nano' or 'gcc_host'            : string    : (none)
-# Usage: do_gcc_core_backend mode=[static|shared|baremetal] build_libgcc=[yes|no] build_staticlinked=[yes|no]
+# Usage: do_gcc_core_backend mode=[static|shared|baremetal|zephyr] build_libgcc=[yes|no] build_staticlinked=[yes|no]
 do_gcc_core_backend() {
     local mode
     local build_libgcc=no
@@ -341,6 +342,11 @@ do_gcc_core_backend() {
     esac
 
     case "${mode}" in
+        zephyr)
+            extra_config+=("--with-newlib")
+            extra_config+=("--enable-threads=posix")
+            extra_config+=("--disable-shared")
+            ;;
         static)
             extra_config+=("--with-newlib")
             extra_config+=("--enable-threads=no")
@@ -377,6 +383,11 @@ do_gcc_core_backend() {
 
     if [ -n "${CT_CC_GCC_ENABLE_CXX_FLAGS}" \
             -a "${mode}" = "baremetal" ]; then
+        extra_config+=("--enable-cxx-flags=${CT_CC_GCC_ENABLE_CXX_FLAGS}")
+    fi
+
+    if [ -n "${CT_CC_GCC_ENABLE_CXX_FLAGS}" \
+            -a "${mode}" = "zephyr" ]; then
         extra_config+=("--enable-cxx-flags=${CT_CC_GCC_ENABLE_CXX_FLAGS}")
     fi
 
@@ -660,6 +671,10 @@ do_gcc_core_backend() {
             repair_cc="CC_FOR_BUILD=${CT_BUILD}-gcc \
                        CXX_FOR_BUILD=${CT_BUILD}-g++ \
                        GCC_FOR_TARGET=${CT_TARGET}-${CT_CC}"
+        elif [ "${CT_ZEPHYR},${CT_CANADIAN}" = "y,y" ]; then
+            repair_cc="CC_FOR_BUILD=${CT_BUILD}-gcc \
+                       CXX_FOR_BUILD=${CT_BUILD}-g++ \
+                       GCC_FOR_TARGET=${CT_TARGET}-${CT_CC}"
         else
             repair_cc=""
         fi
@@ -772,6 +787,17 @@ do_cc_for_build() {
             build_final_opts+=( "build_staticlinked=yes" )
         fi
         build_final_backend=do_gcc_core_backend
+    elif [ "${CT_ZEPHYR}" = "y" ]; then
+        # In the tests I've done, bare-metal was not impacted by the
+        # lack of such a compiler, but better safe than sorry...
+        build_final_opts+=( "mode=zephyr" )
+        build_final_opts+=( "build_libgcc=yes" )
+        build_final_opts+=( "build_libstdcxx=yes" )
+        build_final_opts+=( "build_libgfortran=yes" )
+        if [ "${CT_STATIC_TOOLCHAIN}" = "y" ]; then
+            build_final_opts+=( "build_staticlinked=yes" )
+        fi
+        build_final_backend=do_gcc_core_backend
     else
         build_final_backend=do_gcc_backend
     fi
@@ -861,6 +887,15 @@ do_cc_for_host() {
             final_opts+=( "build_staticlinked=yes" )
         fi
         final_backend=do_gcc_core_backend
+    elif [ "${CT_ZEPHYR}" = "y" ]; then
+        final_opts+=( "mode=zephyr" )
+        final_opts+=( "build_libgcc=yes" )
+        final_opts+=( "build_libstdcxx=yes" )
+        final_opts+=( "build_libgfortran=yes" )
+        if [ "${CT_STATIC_TOOLCHAIN}" = "y" ]; then
+            final_opts+=( "build_staticlinked=yes" )
+        fi
+        final_backend=do_gcc_core_backend
     else
         final_backend=do_gcc_backend
     fi
@@ -901,6 +936,15 @@ do_cc_libstdcxx_nano()
 
         if [ "${CT_BARE_METAL}" = "y" ]; then
             final_opts+=( "mode=baremetal" )
+            final_opts+=( "build_libgcc=yes" )
+            final_opts+=( "build_libstdcxx=yes" )
+            final_opts+=( "build_libgfortran=yes" )
+            if [ "${CT_STATIC_TOOLCHAIN}" = "y" ]; then
+                final_opts+=( "build_staticlinked=yes" )
+            fi
+            final_backend=do_gcc_core_backend
+        elif [ "${CT_ZEPHYR}" = "y" ]; then
+            final_opts+=( "mode=zephyr" )
             final_opts+=( "build_libgcc=yes" )
             final_opts+=( "build_libstdcxx=yes" )
             final_opts+=( "build_libgfortran=yes" )
@@ -1149,12 +1193,6 @@ do_gcc_backend() {
         extra_config+=("--disable-libstdcxx-pch")
     fi
 
-    if [ "${build_step}" = "libstdcxx_nano" ]; then
-        extra_config+=("-ffunction-sections")
-        extra_config+=("-fdata-sections")
-        extra_config+=("-fno-exceptions")
-    fi
-
     case "${CT_CC_GCC_LDBL_128}" in
         y)  extra_config+=("--with-long-double-128");;
         m)  ;;
@@ -1251,6 +1289,12 @@ do_gcc_backend() {
 
     # Assume '-O2' by default for building target libraries.
     cflags_for_target="-g -O2 ${cflags_for_target}"
+
+    if [ "${build_step}" = "libstdcxx_nano" ]; then
+        cflags_for_target ="-ffunction-sections ${cflags_for_target}"
+        cflags_for_target ="-fdata-sections ${cflags_for_target}"
+        cflags_for_target ="-fno-exceptions ${cflags_for_target}"
+    fi
 
     # NB: not using CT_ALL_TARGET_CFLAGS/CT_ALL_TARGET_LDFLAGS here!
     # See do_gcc_core_backend for explanation.

@@ -1,6 +1,6 @@
 # newlib options
 
-## depends on BARE_METAL
+## depends on BARE_METAL || ZEPHYR
 ## select LIBC_SUPPORT_THREADS_NONE
 ## select CC_CORE_PASSES_NEEDED if CANADIAN
 ## select CC_CORE_PASS_2_NEEDED if ! CANADIAN
@@ -151,13 +151,6 @@ config LIBC_NEWLIB_MULTITHREAD
     default y
     help
         Enable support for multiple threads.
-
-config LIBC_NEWLIB_RETARGETABLE_LOCKING
-    bool
-    prompt "Enable retargetable locking"
-    help
-        Enable retargetable locking to allow the operating system to override
-        the dummy lock functions defined within the newlib.
 
 config LIBC_NEWLIB_EXTRA_SECTIONS
     bool
@@ -361,13 +354,6 @@ config LIBC_NANO_NEWLIB_MULTITHREAD
     default y
     help
         Enable support for multiple threads.
-
-config LIBC_NANO_NEWLIB_RETARGETABLE_LOCKING
-    bool
-    prompt "Enable retargetable locking"
-    help
-        Enable retargetable locking to allow the operating system to override
-        the dummy lock functions defined within the newlib.
 
 config LIBC_NANO_NEWLIB_EXTRA_SECTIONS
     bool

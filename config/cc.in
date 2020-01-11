@@ -58,7 +58,7 @@ config CC_LANG_FORTRAN
       Only select this if you know that your specific version of the
       compiler supports this language.
 
-if ! BARE_METAL
+if ! BARE_METAL && ! ZEPHYR
 
 config CC_LANG_JAVA
     bool
@@ -114,7 +114,7 @@ config CC_LANG_GOLANG
       Only select this if you know that your specific version of the
       compiler supports this language.
 
-endif # ! BARE_METAL
+endif # ! BARE_METAL && ! ZEPHYR
 
 config CC_LANG_OTHERS
     string
@@ -129,3 +129,4 @@ config CC_LANG_OTHERS
       in real life, it is not available in the selection above.
 
 endmenu
+
